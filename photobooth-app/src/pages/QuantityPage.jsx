@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { usePhotobooth } from '../contexts/PhotoboothContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import TemplateFallback from '../components/ui/TemplateFallback';
 // Import the direct CSS file
 import './TemplateStyles.css';
 
@@ -382,54 +383,19 @@ const QuantityPage = () => {
         animate="show"
       >
         {templates.map((template) => (
-          <TemplateCard
+          <motion.div
             key={template.id}
             variants={itemAnimation}
             whileHover={{ scale: 1.02, y: -5 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => handleSelectTemplate(template)}
-            $selected={selectedTemplate?.id === template.id}
+            style={{ height: '100%' }}
           >
-            <TemplatePreview 
-              className={`template-preview layout-${template.layout === 'custom' ? 'custom' : template.layout}`}
-              $layout={template.layout}
-              style={{ 
-                display: 'grid', 
-                gridTemplateColumns: template.layout === '2x2' ? 'repeat(2, 1fr)' : 
-                  template.layout === '4x1' ? 'repeat(4, 1fr)' : 
-                  template.layout === '2-1-1' ? '2fr 1fr 1fr' :
-                  template.layout === '1-2-1' ? '1fr 2fr 1fr' :
-                  template.layout === '1-1-2' ? '1fr 1fr 2fr' :
-                  template.layout === '3x1' ? 'repeat(3, 1fr)' :
-                  'repeat(2, 1fr)',
-                gridTemplateRows: template.layout === '2x2' ? 'repeat(2, 1fr)' : 
-                  template.layout === '1x4' ? 'repeat(4, 1fr)' :
-                  template.layout === '3-1' ? '3fr 1fr' :
-                  template.layout === '1-3' ? '1fr 3fr' :
-                  'repeat(1, 1fr)'
-              }}
-            >
-              {template.slots.map((slot, index) => (
-                <PhotoSlot 
-                  key={index}
-                  className="photo-slot"
-                  $gridColumn={slot.gridColumn}
-                  $gridRow={slot.gridRow}
-                  $color={slot.color}
-                  style={{
-                    gridColumn: slot.gridColumn || 'auto',
-                    gridRow: slot.gridRow || 'auto',
-                    backgroundColor: slot.color
-                  }}
-                >
-                  {index + 1}
-                </PhotoSlot>
-              ))}
-            </TemplatePreview>
-            <TemplateName>{template.name}</TemplateName>
-            <TemplateDescription>{template.description}</TemplateDescription>
-            <TemplatePrice>${template.price.toFixed(2)}</TemplatePrice>
-          </TemplateCard>
+            <TemplateFallback 
+              template={template}
+              onClick={() => handleSelectTemplate(template)}
+              isSelected={selectedTemplate?.id === template.id}
+            />
+          </motion.div>
         ))}
       </TemplatesGrid>
       
