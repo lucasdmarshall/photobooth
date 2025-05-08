@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd photobooth-app && npm run build",
+  "outputDirectory": "photobooth-app/dist",
+  "devCommand": "cd photobooth-app && npm start",
+  "installCommand": "cd photobooth-app && npm install",
+  "framework": "create-react-app",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+} 

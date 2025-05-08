@@ -1,0 +1,43 @@
+/* Template grid styles that will be loaded directly */
+.template-preview {
+  display: grid !important;
+  gap: 4px !important;
+  padding: 4px !important;
+  width: 100% !important;
+  aspect-ratio: 4/3 !important;
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 8px !important;
+  margin-bottom: 16px !important;
+}
+
+.photo-slot {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: white !important;
+  font-size: 24px !important;
+  opacity: 0.8 !important;
+  border-radius: 8px !important;
+}
+
+/* Layout specific grid templates */
+.layout-2x2 {
+  grid-template-columns: repeat(2, 1fr) !important;
+  grid-template-rows: repeat(2, 1fr) !important;
+}
+
+.layout-4x1 {
+  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-rows: 1fr !important;
+}
+
+.layout-1x4 {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: repeat(4, 1fr) !important;
+}
+
+.layout-custom {
+  grid-template-columns: repeat(4, 1fr) !important;
+  grid-template-rows: auto auto !important;
+} 

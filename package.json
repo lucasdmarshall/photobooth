@@ -1,0 +1,10 @@
+{
+  "name": "photobooth-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "install": "cd photobooth-app && npm install",
+    "start": "cd photobooth-app && npm start",
+    "build": "cd photobooth-app && npm run build"
+  }
+} 
