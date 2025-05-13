@@ -1,4 +1,25 @@
-import { FaceMesh } from '@mediapipe/face_mesh';
+// Make MediaPipe Face Mesh optional to prevent build failures
+let FaceMesh = null;
+
+// We'll try to load MediaPipe at runtime instead of build time
+const loadFaceMesh = () => {
+  try {
+    // Check if the module is available in the window/global scope
+    if (window.FaceMesh) {
+      return window.FaceMesh;
+    }
+    
+    // Try dynamic import if available in browser
+    if (typeof require !== 'undefined') {
+      return require('@mediapipe/face_mesh').FaceMesh;
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('MediaPipe Face Mesh not available, beautification features will be limited');
+    return null;
+  }
+};
 
 let cv = null;
 let faceMesh = null;
@@ -61,23 +82,40 @@ const loadOpenCV = async () => {
 
 // Initialize MediaPipe FaceMesh
 const initFaceMesh = async () => {
-  faceMesh = new FaceMesh({
-    locateFile: (file) => {
-      return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+  if (faceMesh) return Promise.resolve();
+  
+  // Try to load FaceMesh at runtime
+  if (!FaceMesh) {
+    FaceMesh = loadFaceMesh();
+  }
+  
+  // Skip if MediaPipe is still not available
+  if (!FaceMesh) {
+    console.warn('MediaPipe Face Mesh not available, skipping initialization');
+    return Promise.resolve();
+  }
+  
+  return new Promise((resolve) => {
+    try {
+      faceMesh = new FaceMesh({
+        locateFile: (file) => {
+          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+        }
+      });
+      
+      faceMesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+      });
+      
+      resolve();
+    } catch (error) {
+      console.warn('Error initializing FaceMesh, beautification will be limited:', error);
+      resolve(); // Resolve anyway to continue with limited functionality
     }
   });
-
-  await faceMesh.initialize();
-  
-  // Configure face mesh for higher accuracy
-  faceMesh.setOptions({
-    maxNumFaces: 1,
-    refineLandmarks: true,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
-  });
-  
-  console.log('MediaPipe FaceMesh initialized successfully');
 };
 
 // Initialize both libraries
@@ -98,17 +136,26 @@ export const initBeautificationTools = async () => {
 
 // Process facial landmarks and return them
 const detectFacialLandmarks = async (imageData) => {
+  if (!faceMesh) {
+    // Return null if FaceMesh is not available
+    return Promise.resolve(null);
+  }
+  
   return new Promise((resolve) => {
-    faceMesh.onResults((results) => {
-      if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-        resolve(results.multiFaceLandmarks[0]);
-      } else {
-        resolve(null);
-      }
-    });
-    
-    // Process the image
-    faceMesh.send({ image: imageData });
+    try {
+      faceMesh.onResults((results) => {
+        if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
+          resolve(results.multiFaceLandmarks[0]);
+        } else {
+          resolve(null);
+        }
+      });
+      
+      faceMesh.send({image: imageData});
+    } catch (error) {
+      console.warn('Error detecting facial landmarks:', error);
+      resolve(null); // Resolve with null to continue with limited functionality
+    }
   });
 };
 
@@ -336,71 +383,68 @@ export const applyBeautificationEffects = async (imageData, options = {}) => {
       imageElement.onload = resolve;
     });
     
-    // Detect facial landmarks first for warping
-    const landmarks = await detectFacialLandmarks(imageElement);
-    
-    // Convert image to OpenCV format
-    src = cv.imread(imageElement);
-    result = src;
-    
-    // Step 1: Apply facial warping if landmarks are detected
-    if (landmarks && settings.faceSlimming > 0) {
-      const warped = applyFacialWarping(result, landmarks, settings.faceSlimming);
-      if (result !== src) {
-        try { result.delete(); } catch (e) { /* ignore */ }
-      }
-      result = warped;
+    // If OpenCV is not available, return original image
+    if (!cv) {
+      console.warn('OpenCV not available, skipping beautification');
+      isCurrentlyProcessing = false;
+      return imageData;
     }
     
-    // Step 2: Apply skin smoothing
-    if (settings.smoothing > 0) {
-      const smoothed = applySkinSmoothing(result, settings.smoothing);
-      if (result !== src) {
-        try { result.delete(); } catch (e) { /* ignore */ }
+    // Apply beautification effects based on settings
+    let src = cv.imread(imageElement);
+    let result = src;
+    
+    try {
+      // Apply effects based on settings
+      if (settings.smoothing > 0) {
+        const smoothed = applySkinSmoothing(result, settings.smoothing);
+        if (result !== src) result.delete();
+        result = smoothed;
       }
-      result = smoothed;
-    }
-    
-    // Step 3: Apply skin tone enhancement
-    if (settings.skinTone > 0 || settings.brightness > 0) {
-      const enhanced = applySkinToneEnhancement(result, settings.skinTone, settings.brightness);
-      if (result !== src) {
-        try { result.delete(); } catch (e) { /* ignore */ }
+      
+      if (settings.skinTone > 0 || settings.brightness > 0) {
+        const enhanced = applySkinToneEnhancement(result, settings.skinTone, settings.brightness);
+        if (result !== src) result.delete();
+        result = enhanced;
       }
-      result = enhanced;
+      
+      // Only apply face slimming if FaceMesh is available
+      if (settings.faceSlimming > 0 && faceMesh) {
+        const landmarks = await detectFacialLandmarks(imageElement);
+        if (landmarks) {
+          const warped = applyFacialWarping(result, landmarks, settings.faceSlimming);
+          if (result !== src) result.delete();
+          result = warped;
+        }
+      }
+      
+      // Create canvas to get resulting image data
+      const canvas = document.createElement('canvas');
+      canvas.width = result.cols;
+      canvas.height = result.rows;
+      
+      // Render result to canvas
+      cv.imshow(canvas, result);
+      
+      // Get final image as data URL
+      const outputImageData = canvas.toDataURL('image/jpeg', 0.9);
+      
+      return outputImageData;
+    } finally {
+      // Clean up OpenCV resources
+      try {
+        if (result && result !== src) result.delete();
+        if (src) src.delete();
+      } catch (e) {
+        console.error('Error cleaning up OpenCV resources:', e);
+      }
+      
+      isCurrentlyProcessing = false;
     }
-    
-    // Create canvas to get resulting image data
-    const canvas = document.createElement('canvas');
-    canvas.width = result.cols;
-    canvas.height = result.rows;
-    
-    // Render result to canvas
-    cv.imshow(canvas, result);
-    
-    // Get final image as data URL
-    const outputImageData = canvas.toDataURL('image/jpeg', 0.9);
-    
-    // Release lock before returning
-    isCurrentlyProcessing = false;
-    return outputImageData;
   } catch (error) {
     console.error('Error applying beautification effects:', error);
-    // Return original image in case of failure
     isCurrentlyProcessing = false; // Release lock
     return imageData;
-  } finally {
-    // Clean up OpenCV resources
-    try {
-      if (result && result !== src) {
-        result.delete();
-      }
-      if (src) {
-        src.delete();
-      }
-    } catch (e) {
-      console.error('Error cleaning up OpenCV resources:', e);
-    }
   }
 };
 
