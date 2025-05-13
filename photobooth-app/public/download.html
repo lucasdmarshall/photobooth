@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Download Your Photos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #ff4081;
+      --secondary-color: #3f51b5;
+      --background-color: #f5f5f7;
+      --card-background: #ffffff;
+      --text-primary: #333333;
+      --text-secondary: #666666;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      width: 100%;
+      background-color: var(--card-background);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 40px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: var(--primary-color);
+    }
+    
+    h2 {
+      font-size: 1.8rem;
+      margin: 30px 0 15px;
+      color: var(--secondary-color);
+    }
+    
+    p {
+      margin-bottom: 20px;
+      color: var(--text-secondary);
+    }
+    
+    .photo-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin: 30px 0;
+    }
+    
+    .photo-strip-container {
+      position: relative;
+      padding: 20px;
+      margin: 0 auto 40px;
+      max-width: 300px;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+    
+    .photo-strip-wrapper {
+      position: relative;
+      animation: float 6s ease-in-out infinite;
+    }
+    
+    @keyframes float {
+      0% { transform: translateY(0px) rotate3d(0, 1, 1, 0deg); }
+      50% { transform: translateY(-10px) rotate3d(0, 1, 1, 2deg); }
+      100% { transform: translateY(0px) rotate3d(0, 1, 1, 0deg); }
+    }
+    
+    .photo-strip {
+      max-width: 100%;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25), 0 6px 10px rgba(0, 0, 0, 0.22);
+      transition: transform 0.3s ease;
+      display: block;
+    }
+    
+    .individual-photo {
+      max-width: 200px;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      transition: transform 0.3s ease;
+    }
+    
+    .individual-photo:hover {
+      transform: scale(1.05);
+    }
+    
+    .button {
+      display: inline-block;
+      background-color: var(--primary-color);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      margin: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .button:hover {
+      background-color: #e91e63;
+      transform: translateY(-2px);
+      box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1);
+    }
+    
+    .button.secondary {
+      background-color: var(--secondary-color);
+    }
+    
+    .button.secondary:hover {
+      background-color: #303f9f;
+    }
+    
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+    
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 64, 129, 0.2);
+      border-top: 5px solid var(--primary-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    
+    .error {
+      color: #d32f2f;
+      margin: 20px 0;
+    }
+    
+    .hello-kitty-border {
+      position: relative;
+      padding: 20px;
+    }
+    
+    .hello-kitty-border::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border: 8px solid #FFC0CB;
+      border-image: linear-gradient(45deg, #FF69B4, #FFC0CB, #FFCCFF, #FFC0CB, #FF69B4) 1;
+      pointer-events: none;
+      z-index: 1;
+    }
+    
+    .hello-kitty-face {
+      position: absolute;
+      top: -20px;
+      left: -20px;
+      width: 40px;
+      height: 40px;
+      background-color: white;
+      border-radius: 50%;
+      border: 2px solid #FF69B4;
+      z-index: 2;
+    }
+    
+    .hello-kitty-bow {
+      position: absolute;
+      top: -15px;
+      right: -15px;
+      width: 30px;
+      height: 30px;
+      z-index: 2;
+    }
+    
+    .section-divider {
+      height: 3px;
+      background: linear-gradient(to right, transparent, var(--primary-color), transparent);
+      margin: 40px auto;
+      width: 80%;
+      opacity: 0.5;
+    }
+    
+    .download-options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    @keyframes twinkle {
+      0% { opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { opacity: 0.7; }
+    }
+    
+    .hello-kitty-star {
+      position: absolute;
+      color: #FFCC00;
+      font-size: 16px;
+      animation: twinkle 2s ease-in-out infinite;
+      z-index: 2;
+    }
+    
+    .hello-kitty-heart {
+      position: absolute;
+      color: #FF69B4;
+      font-size: 16px;
+      animation: twinkle 3s ease-in-out infinite;
+      z-index: 2;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+      
+      h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="main-container">
+    <div id="loading" class="loading">
+      <div class="spinner"></div>
+      <p>Loading your photos...</p>
+    </div>
+    
+    <div id="content" style="display: none;">
+      <h1>Your Photos Are Ready!</h1>
+      <p>Here are the photos from your photobooth session. Click the buttons below to download them.</p>
+      
+      <!-- Photo Strip Section -->
+      <h2>Your Photo Strip</h2>
+      <p>This is your complete photo strip with the Hello Kitty border</p>
+      
+      <div class="photo-strip-container">
+        <div class="photo-strip-wrapper" id="photo-strip-preview">
+          <!-- Photo strip will be inserted here -->
+        </div>
+      </div>
+      
+      <div class="download-options">
+        <button class="button" id="download-strip" onclick="downloadPhotoStrip()">Download Photo Strip</button>
+      </div>
+      
+      <div class="section-divider"></div>
+      
+      <!-- Individual Photos Section -->
+      <h2>Individual Photos</h2>
+      <p>Download your individual photos separately</p>
+      
+      <div class="photo-container" id="individual-photos">
+        <!-- Individual photos will be inserted here -->
+      </div>
+      
+      <div class="download-options">
+        <button class="button" id="download-all">Download All Photos</button>
+        <a href="/" class="button secondary">Back to Photobooth</a>
+      </div>
+    </div>
+    
+    <div id="error" class="error" style="display: none;">
+      <h2>Oops! Something went wrong</h2>
+      <p>We couldn't find your photos. The link may have expired or is invalid.</p>
+      <a href="/" class="button">Back to Photobooth</a>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const downloadId = urlParams.get('id');
+      
+      const loadingElement = document.getElementById('loading');
+      const contentElement = document.getElementById('content');
+      const errorElement = document.getElementById('error');
+      const photoPreviewElement = document.getElementById('photo-preview');
+      const downloadAllButton = document.getElementById('download-all');
+      
+      // If no download ID is provided, show error
+      if (!downloadId) {
+        loadingElement.style.display = 'none';
+        errorElement.style.display = 'block';
+        return;
+      }
+      
+      // Try to get photo data from localStorage (where the app would store it)
+      const getPhotosFromStorage = () => {
+        try {
+          // Check if we have photos stored for this ID
+          const storedData = localStorage.getItem(`photobooth_${downloadId}`);
+          if (storedData) {
+            return JSON.parse(storedData);
+          }
+          
+          // If not found by exact ID, check if we have any photobooth data
+          // This is a fallback for demo purposes
+          const photoboothData = localStorage.getItem('photoboothState');
+          if (photoboothData) {
+            const data = JSON.parse(photoboothData);
+            if (data.capturedPhotos && data.capturedPhotos.length > 0) {
+              return {
+                photos: data.capturedPhotos,
+                templateId: data.photoTemplate || 'standard_strip',
+                selectedPhotos: data.selectedPhotos || [0, 1, 2, 3]
+              };
+            }
+          }
+          
+          return null;
+        } catch (error) {
+          console.error('Error retrieving photos from storage:', error);
+          return null;
+        }
+      };
+      
+      // Generate sample photos if none are available
+      const generateSamplePhotos = () => {
+        // Create sample photo data URLs (colored rectangles)
+        return [
+          createSamplePhotoDataUrl('#FF5252'), // Red
+          createSamplePhotoDataUrl('#448AFF'), // Blue
+          createSamplePhotoDataUrl('#66BB6A'), // Green
+          createSamplePhotoDataUrl('#FFCA28')  // Yellow
+        ];
+      };
+      
+      // Create a sample photo data URL
+      const createSamplePhotoDataUrl = (color) => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          
+          // Fill background
+          ctx.fillStyle = color;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Add some text
+          ctx.fillStyle = 'white';
+          ctx.font = 'bold 40px Arial';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('Sample Photo', canvas.width/2, canvas.height/2);
+          
+          // Add a camera icon
+          ctx.font = '60px Arial';
+          ctx.fillText('\ud83d\udcf8', canvas.width/2, canvas.height/2 - 70);
+          
+          return canvas.toDataURL('image/jpeg');
+        } catch (error) {
+          console.error('Error creating sample photo:', error);
+          // Return a fallback image URL if canvas fails
+          return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAADICAYAAADGFbfiAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH4AkZCyAl8YXV8gAAAB1pVFh0Q29tbWVudAAAAAAAQ3JlYXRlZCB3aXRoIEdJTVBkLmUHAAABSElEQVR42u3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBPAABPO1TCQAAAABJRU5ErkJggg==';
+        }
+      };
+      
+      // Function to create a photo strip from individual photos
+      const createPhotoStrip = (photos, selectedPhotos, templateId = 'standard_strip') => {
+        // Create a canvas to render the photo strip
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Determine if we should use a half strip based on template or photo count
+        let isHalfStrip = templateId === 'half_strip';
+        
+        // If we only have 2 photos or fewer, use a half strip regardless of template
+        if (selectedPhotos.length <= 2 || photos.length <= 2) {
+          isHalfStrip = true;
+        }
+        
+        // Set dimensions based on strip type (standard 2x6 or half 2x3)
+        const stripWidth = 600; // 2 inches at 300dpi
+        const stripHeight = isHalfStrip ? 900 : 1800; // 3 or 6 inches at 300dpi
+        
+        canvas.width = stripWidth;
+        canvas.height = stripHeight;
+        
+        // Fill with background color based on template
+        if (templateId === 'blue_mood') {
+          ctx.fillStyle = '#3f51b5';
+        } else {
+          ctx.fillStyle = '#000000'; // Black and white template
+        }
+        ctx.fillRect(0, 0, stripWidth, stripHeight);
+        
+        // Calculate photo dimensions and spacing
+        const photoCount = isHalfStrip ? 2 : 4;
+        const photoHeight = (stripHeight - ((photoCount - 1) * 38)) / photoCount; // 38px spacing (0.125 inches)
+        
+        // Draw each photo
+        const photosToDraw = selectedPhotos.slice(0, photoCount);
+        photosToDraw.forEach((photoIndex, index) => {
+          if (photoIndex >= 0 && photoIndex < photos.length) {
+            const img = new Image();
+            img.src = photos[photoIndex];
+            
+            // Position for this photo
+            const yPos = index * (photoHeight + 38);
+            
+            // Draw photo when loaded
+            img.onload = function() {
+              // Calculate aspect ratio to fill width while maintaining proportions
+              const aspectRatio = img.width / img.height;
+              let drawWidth = stripWidth;
+              let drawHeight = stripWidth / aspectRatio;
+              let offsetY = (photoHeight - drawHeight) / 2;
+              
+              // If height is too small, scale based on height instead
+              if (drawHeight < photoHeight) {
+                drawHeight = photoHeight;
+                drawWidth = photoHeight * aspectRatio;
+                offsetY = 0;
+              }
+              
+              // Center horizontally if needed
+              const offsetX = (stripWidth - drawWidth) / 2;
+              
+              // Draw the photo
+              ctx.drawImage(img, offsetX, yPos + offsetY, drawWidth, drawHeight);
+              
+              // Add photo number
+              ctx.fillStyle = 'white';
+              ctx.font = 'bold 30px Arial';
+              ctx.fillText(`#${index + 1}`, 20, yPos + 40);
+              
+              // If this is the last photo, convert to data URL and display
+              if (index === photosToDraw.length - 1) {
+                try {
+                  const photoStripUrl = canvas.toDataURL('image/jpeg');
+                  // Store canvas in global variable for download button
+                  globalStripCanvas = canvas;
+                  displayPhotoStrip(photoStripUrl, canvas);
+                } catch (error) {
+                  console.error('Error creating photo strip:', error);
+                  // Create a fallback image if canvas fails
+                  const fallbackUrl = createSamplePhotoDataUrl('#FF5252');
+                  displayPhotoStrip(fallbackUrl, null);
+                }
+              }
+            };
+            
+            // Handle loading errors
+            img.onerror = function() {
+              console.error('Error loading image for photo strip');
+              // Draw a placeholder
+              ctx.fillStyle = '#FF5252';
+              ctx.fillRect(0, yPos, stripWidth, photoHeight);
+              ctx.fillStyle = 'white';
+              ctx.font = 'bold 30px Arial';
+              ctx.fillText(`Photo #${index + 1} (Error)`, 20, yPos + photoHeight/2);
+              
+              // If this is the last photo, convert to data URL and display
+              if (index === photosToDraw.length - 1) {
+                try {
+                  const photoStripUrl = canvas.toDataURL('image/jpeg');
+                  // Store canvas in global variable for download button
+                  globalStripCanvas = canvas;
+                  displayPhotoStrip(photoStripUrl, canvas);
+                } catch (error) {
+                  console.error('Error creating photo strip:', error);
+                  // Create a fallback image if canvas fails
+                  const fallbackUrl = createSamplePhotoDataUrl('#FF5252');
+                  displayPhotoStrip(fallbackUrl, null);
+                }
+              }
+            };
+          }
+        });
+        
+        return canvas;
+      };
+      
+      // Function to create a Hello Kitty border on a canvas
+      const addHelloKittyBorderToCanvas = (canvas) => {
+        const ctx = canvas.getContext('2d');
+        const width = canvas.width;
+        const height = canvas.height;
+        
+        // Save the original image data
+        const originalImageData = ctx.getImageData(0, 0, width, height);
+        
+        // Create a new canvas with extra space for the border
+        const borderWidth = Math.round(width * 0.08); // 8% of width for border
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = width + (borderWidth * 2);
+        newCanvas.height = height + (borderWidth * 2);
+        const newCtx = newCanvas.getContext('2d');
+        
+        // Draw gradient border
+        const gradient = newCtx.createLinearGradient(0, 0, newCanvas.width, newCanvas.height);
+        gradient.addColorStop(0, '#FF69B4');
+        gradient.addColorStop(0.25, '#FFC0CB');
+        gradient.addColorStop(0.5, '#FFCCFF');
+        gradient.addColorStop(0.75, '#FFC0CB');
+        gradient.addColorStop(1, '#FF69B4');
+        
+        newCtx.fillStyle = gradient;
+        newCtx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+        
+        // Draw the original image in the center
+        newCtx.putImageData(originalImageData, borderWidth, borderWidth);
+        
+        // Draw Hello Kitty face in top left
+        newCtx.fillStyle = 'white';
+        newCtx.beginPath();
+        newCtx.arc(borderWidth/2, borderWidth/2, borderWidth*0.8, 0, Math.PI * 2);
+        newCtx.fill();
+        newCtx.strokeStyle = '#FF69B4';
+        newCtx.lineWidth = 2;
+        newCtx.stroke();
+        
+        // Eyes
+        newCtx.fillStyle = 'black';
+        newCtx.beginPath();
+        newCtx.arc(borderWidth/2 - borderWidth*0.2, borderWidth/2 - borderWidth*0.1, borderWidth*0.1, 0, Math.PI * 2);
+        newCtx.fill();
+        newCtx.beginPath();
+        newCtx.arc(borderWidth/2 + borderWidth*0.2, borderWidth/2 - borderWidth*0.1, borderWidth*0.1, 0, Math.PI * 2);
+        newCtx.fill();
+        
+        // Nose
+        newCtx.fillStyle = '#FFCC00';
+        newCtx.beginPath();
+        newCtx.arc(borderWidth/2, borderWidth/2 + borderWidth*0.1, borderWidth*0.08, 0, Math.PI * 2);
+        newCtx.fill();
+        
+        // Draw bow in top right
+        newCtx.fillStyle = '#FF69B4';
+        newCtx.save();
+        newCtx.translate(newCanvas.width - borderWidth/2, borderWidth/2);
+        
+        // Left part of bow
+        newCtx.save();
+        newCtx.rotate(Math.PI/4);
+        newCtx.fillRect(-borderWidth*0.6, -borderWidth*0.2, borderWidth*1.2, borderWidth*0.4);
+        newCtx.restore();
+        
+        // Right part of bow
+        newCtx.save();
+        newCtx.rotate(-Math.PI/4);
+        newCtx.fillRect(-borderWidth*0.6, -borderWidth*0.2, borderWidth*1.2, borderWidth*0.4);
+        newCtx.restore();
+        
+        // Center of bow
+        newCtx.fillStyle = '#FFCC00';
+        newCtx.beginPath();
+        newCtx.arc(0, 0, borderWidth*0.15, 0, Math.PI * 2);
+        newCtx.fill();
+        newCtx.restore();
+        
+        // Draw hearts on sides
+        newCtx.fillStyle = '#FF69B4';
+        for (let i = 0; i < 4; i++) {
+          const yPos = borderWidth + (height * (0.25 + (i * 0.15)));
+          
+          // Draw heart on left side
+          drawHeart(newCtx, borderWidth/2, yPos, borderWidth*0.4);
+          
+          // Draw star on right side
+          newCtx.fillStyle = '#FFCC00';
+          drawStar(newCtx, newCanvas.width - borderWidth/2, yPos, 5, borderWidth*0.3, borderWidth*0.15);
+          newCtx.fillStyle = '#FF69B4';
+        }
+        
+        // Draw hearts at bottom corners
+        drawHeart(newCtx, borderWidth*1.5, newCanvas.height - borderWidth*1.5, borderWidth*0.6);
+        drawHeart(newCtx, newCanvas.width - borderWidth*1.5, newCanvas.height - borderWidth*1.5, borderWidth*0.6);
+        
+        return newCanvas;
+      };
+      
+      // Function to draw a heart shape
+      const drawHeart = (ctx, x, y, size) => {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(size/2, -size/3, size, size/3, 0, size);
+        ctx.bezierCurveTo(-size, size/3, -size/2, -size/3, 0, 0);
+        ctx.fill();
+        ctx.restore();
+      };
+      
+      // Function to draw a star shape
+      const drawStar = (ctx, cx, cy, spikes, outerRadius, innerRadius) => {
+        let rot = Math.PI / 2 * 3;
+        let x = cx;
+        let y = cy;
+        let step = Math.PI / spikes;
+        
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+          x = cx + Math.cos(rot) * outerRadius;
+          y = cy + Math.sin(rot) * outerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+          
+          x = cx + Math.cos(rot) * innerRadius;
+          y = cy + Math.sin(rot) * innerRadius;
+          ctx.lineTo(x, y);
+          rot += step;
+        }
+        ctx.lineTo(cx, cy - outerRadius);
+        ctx.closePath();
+        ctx.fill();
+      };
+      
+      // Function to display the photo strip with Hello Kitty border
+      const displayPhotoStrip = (photoStripUrl, stripCanvas) => {
+        const stripPreviewElement = document.getElementById('photo-strip-preview');
+        
+        // Create Hello Kitty border container
+        const stripElement = document.createElement('div');
+        stripElement.className = 'hello-kitty-border';
+        
+        // Hello Kitty face
+        const faceElement = document.createElement('div');
+        faceElement.className = 'hello-kitty-face';
+        stripElement.appendChild(faceElement);
+        
+        // Hello Kitty bow
+        const bowElement = document.createElement('div');
+        bowElement.className = 'hello-kitty-bow';
+        stripElement.appendChild(bowElement);
+        
+        // Add stars and hearts decorations
+        for (let i = 0; i < 4; i++) {
+          const star = document.createElement('div');
+          star.className = 'hello-kitty-star';
+          star.style.right = '-12px';
+          star.style.top = `${25 + (i * 25)}%`;
+          star.innerHTML = '\u2605';
+          stripElement.appendChild(star);
+          
+          const heart = document.createElement('div');
+          heart.className = 'hello-kitty-heart';
+          heart.style.left = '-12px';
+          heart.style.top = `${25 + (i * 25)}%`;
+          heart.innerHTML = '\u2665';
+          stripElement.appendChild(heart);
+        }
+        
+        // Photo strip image
+        const imgElement = document.createElement('img');
+        imgElement.src = photoStripUrl;
+        imgElement.alt = 'Photo Strip';
+        imgElement.className = 'photo-strip';
+        stripElement.appendChild(imgElement);
+        
+        stripPreviewElement.appendChild(stripElement);
+        
+        // Store canvas reference for download
+        stripElement.dataset.stripCanvas = 'true';
+        
+        // Set up download strip button - create a version with border baked in
+        const downloadBtn = document.getElementById('download-strip');
+        if (downloadBtn) {
+          // Remove any existing event listeners
+          const newBtn = downloadBtn.cloneNode(true);
+          downloadBtn.parentNode.replaceChild(newBtn, downloadBtn);
+          
+          // Add new event listener
+          newBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Download button clicked');
+            
+            try {
+              // Add Hello Kitty border to the canvas for download
+              const borderedCanvas = addHelloKittyBorderToCanvas(stripCanvas);
+              const borderedStripUrl = borderedCanvas.toDataURL('image/jpeg', 0.95);
+              
+              // Create download link
+              const a = document.createElement('a');
+              a.href = borderedStripUrl;
+              a.download = 'photobooth_strip_with_border.jpg';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              
+              console.log('Download initiated');
+            } catch (error) {
+              console.error('Error during download:', error);
+              alert('There was an error downloading your photo strip. Please try again.');
+            }
+          });
+        } else {
+          console.error('Download button not found');
+        }
+      };
+      
+      // Process the photos and display them
+      setTimeout(() => {
+        // Get photos from storage or generate samples
+        const photoData = getPhotosFromStorage();
+        const photos = photoData?.photos || generateSamplePhotos();
+        const selectedPhotos = photoData?.selectedPhotos || [0, 1, 2, 3];
+        const templateId = photoData?.templateId || 'standard_strip';
+        
+        if (photos.length > 0) {
+          // Create and display the photo strip
+          createPhotoStrip(photos, selectedPhotos, templateId);
+          
+          // Display individual photos
+          const individualPhotosElement = document.getElementById('individual-photos');
+          
+          // Show all photos, not just selected ones
+          photos.forEach((photoUrl, index) => {
+            const photoElement = document.createElement('div');
+            photoElement.className = 'hello-kitty-border';
+            
+            // Hello Kitty face
+            const faceElement = document.createElement('div');
+            faceElement.className = 'hello-kitty-face';
+            photoElement.appendChild(faceElement);
+            
+            // Hello Kitty bow
+            const bowElement = document.createElement('div');
+            bowElement.className = 'hello-kitty-bow';
+            photoElement.appendChild(bowElement);
+            
+            // Photo image
+            const imgElement = document.createElement('img');
+            imgElement.src = photoUrl;
+            imgElement.alt = `Photo ${index + 1}`;
+            imgElement.className = 'individual-photo';
+            photoElement.appendChild(imgElement);
+            
+            // Add download button for individual photo
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'button';
+            downloadBtn.style.fontSize = '12px';
+            downloadBtn.style.padding = '8px 16px';
+            downloadBtn.style.marginTop = '10px';
+            downloadBtn.textContent = `Download Photo #${index + 1}`;
+            downloadBtn.onclick = function() {
+              const a = document.createElement('a');
+              a.href = photoUrl;
+              a.download = `photobooth_photo_${index + 1}.jpg`;
+              a.click();
+            };
+            photoElement.appendChild(downloadBtn);
+            
+            individualPhotosElement.appendChild(photoElement);
+          });
+          
+          // Set up download all button
+          document.getElementById('download-all').addEventListener('click', function() {
+            // Create a zip file in a real implementation
+            // For now, we'll download the photos individually
+            photos.forEach((photoUrl, index) => {
+              setTimeout(() => {
+                const a = document.createElement('a');
+                a.href = photoUrl;
+                a.download = `photobooth_photo_${index + 1}.jpg`;
+                a.click();
+              }, index * 500); // Stagger downloads
+            });
+          });
+          
+          // Show content
+          loadingElement.style.display = 'none';
+          contentElement.style.display = 'block';
+        } else {
+          // Show error
+          loadingElement.style.display = 'none';
+          errorElement.style.display = 'block';
+        }
+      }, 1500); // Simulate loading time
+    });
+    
+    // Global variable to store the strip canvas
+    let globalStripCanvas = null;
+    
+    // Function to download the photo strip with border
+    function downloadPhotoStrip() {
+      console.log('Manual download function called');
+      
+      try {
+        if (globalStripCanvas) {
+          // Add Hello Kitty border to the canvas for download
+          const borderedCanvas = addHelloKittyBorderToCanvas(globalStripCanvas);
+          const borderedStripUrl = borderedCanvas.toDataURL('image/jpeg', 0.95);
+          
+          // Create download link
+          const a = document.createElement('a');
+          a.href = borderedStripUrl;
+          a.download = 'photobooth_strip_with_border.jpg';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          console.log('Download initiated successfully');
+        } else {
+          console.error('No canvas available for download');
+          alert('Please wait for your photos to load completely before downloading.');
+        }
+      } catch (error) {
+        console.error('Error during manual download:', error);
+        alert('There was an error downloading your photo strip. Please try again.');
+      }
+    }
+    
+    // Add Hello Kitty face details after the page loads
+    window.onload = function() {
+      const faces = document.querySelectorAll('.hello-kitty-face');
+      faces.forEach(face => {
+        // Left eye
+        const leftEye = document.createElement('div');
+        leftEye.style.position = 'absolute';
+        leftEye.style.top = '12px';
+        leftEye.style.left = '8px';
+        leftEye.style.width = '5px';
+        leftEye.style.height = '5px';
+        leftEye.style.borderRadius = '50%';
+        leftEye.style.backgroundColor = 'black';
+        face.appendChild(leftEye);
+        
+        // Right eye
+        const rightEye = document.createElement('div');
+        rightEye.style.position = 'absolute';
+        rightEye.style.top = '12px';
+        rightEye.style.right = '8px';
+        rightEye.style.width = '5px';
+        rightEye.style.height = '5px';
+        rightEye.style.borderRadius = '50%';
+        rightEye.style.backgroundColor = 'black';
+        face.appendChild(rightEye);
+        
+        // Nose
+        const nose = document.createElement('div');
+        nose.style.position = 'absolute';
+        nose.style.top = '18px';
+        nose.style.left = '50%';
+        nose.style.transform = 'translateX(-50%)';
+        nose.style.width = '4px';
+        nose.style.height = '4px';
+        nose.style.borderRadius = '50%';
+        nose.style.backgroundColor = '#FFCC00';
+        face.appendChild(nose);
+        
+        // Whiskers
+        const whiskerPositions = [
+          { top: '20px', left: '6px', right: null },
+          { top: '22px', left: '6px', right: null },
+          { top: '20px', left: null, right: '6px' },
+          { top: '22px', left: null, right: '6px' }
+        ];
+        
+        whiskerPositions.forEach(pos => {
+          const whisker = document.createElement('div');
+          whisker.style.position = 'absolute';
+          whisker.style.top = pos.top;
+          if (pos.left) whisker.style.left = pos.left;
+          if (pos.right) whisker.style.right = pos.right;
+          whisker.style.width = '8px';
+          whisker.style.height = '1px';
+          whisker.style.backgroundColor = 'black';
+          face.appendChild(whisker);
+        });
+      });
+      
+      // Add Hello Kitty bows
+      const bows = document.querySelectorAll('.hello-kitty-bow');
+      bows.forEach(bow => {
+        // Left part of bow
+        const leftBow = document.createElement('div');
+        leftBow.style.position = 'absolute';
+        leftBow.style.top = '10px';
+        leftBow.style.left = '5px';
+        leftBow.style.width = '20px';
+        leftBow.style.height = '10px';
+        leftBow.style.backgroundColor = '#FF69B4';
+        leftBow.style.borderRadius = '5px';
+        leftBow.style.transform = 'rotate(45deg)';
+        bow.appendChild(leftBow);
+        
+        // Right part of bow
+        const rightBow = document.createElement('div');
+        rightBow.style.position = 'absolute';
+        rightBow.style.top = '10px';
+        rightBow.style.left = '5px';
+        rightBow.style.width = '20px';
+        rightBow.style.height = '10px';
+        rightBow.style.backgroundColor = '#FF69B4';
+        rightBow.style.borderRadius = '5px';
+        rightBow.style.transform = 'rotate(-45deg)';
+        bow.appendChild(rightBow);
+        
+        // Center of bow
+        const center = document.createElement('div');
+        center.style.position = 'absolute';
+        center.style.top = '15px';
+        center.style.left = '12px';
+        center.style.width = '6px';
+        center.style.height = '6px';
+        center.style.backgroundColor = '#FFCC00';
+        center.style.borderRadius = '50%';
+        bow.appendChild(center);
+      });
+    };
+  </script>
+</body>
+</html>

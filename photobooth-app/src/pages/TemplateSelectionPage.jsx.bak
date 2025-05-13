@@ -1,0 +1,1063 @@
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import styled from 'styled-components';
+import { motion, AnimatePresence } from 'framer-motion';
+import { usePhotobooth } from '../contexts/PhotoboothContext';
+import Button from '../components/ui/Button';
+
+// Page container
+const PageContainer = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background-color: ${({ theme }) => theme.colors.background};
+  padding: ${({ theme }) => theme.spacing.xl};
+  position: relative;
+  overflow: hidden;
+`;
+
+// Title styles
+const Title = styled(motion.h1)`
+  font-size: ${({ theme }) => theme.fontSizes.xxl};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  text-align: center;
+`;
+
+// Subtitle styles
+const Subtitle = styled(motion.p)`
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  margin-bottom: ${({ theme }) => theme.spacing.xxl};
+  text-align: center;
+  max-width: 700px;
+`;
+
+// Carousel container
+const CarouselContainer = styled.div`
+  width: 100%;
+  max-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: ${({ theme }) => theme.spacing.xl};
+`;
+
+// Carousel controls
+const CarouselControls = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+  gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+const CarouselButton = styled.button`
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: ${({ theme }) => theme.colors.primary};
+  color: white;
+  font-size: ${({ theme }) => theme.fontSizes.xl};
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: ${({ theme }) => theme.shadows.large};
+  }
+  
+  &:disabled {
+    background-color: ${({ theme }) => theme.colors.textSecondary};
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: scale(1);
+    box-shadow: none;
+  }
+`;
+
+const TemplatesSlider = styled.div`
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const TemplateWindow = styled.div`
+  width: 100%;
+  height: 400px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const TemplatesTrack = styled(motion.div)`
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+`;
+
+const TemplateCard = styled(motion.div)`
+  min-width: 100%;
+  height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+`;
+
+const TemplateImage = styled.div`
+  width: 100%;
+  height: 280px;
+  border-radius: ${({ theme }) => theme.borderRadius.medium};
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${({ theme }) => theme.spacing.md};
+  background-color: transparent;
+`;
+
+const TemplateName = styled.h3`
+  font-size: ${({ theme }) => theme.fontSizes.md};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  margin: 0;
+  text-align: center;
+`;
+
+const PreviewSection = styled.div`
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: ${({ theme }) => theme.spacing.xl};
+`;
+
+const PreviewTitle = styled.h3`
+  font-size: ${({ theme }) => theme.fontSizes.lg};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  margin-bottom: ${({ theme }) => theme.spacing.md};
+  text-align: center;
+`;
+
+const Preview = styled.div`
+  width: auto;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: ${({ theme }) => theme.spacing.xxl};
+`;
+
+// Define filters array at the component level
+const filters = [
+  { id: 'normal', name: 'Normal', color: null, blendMode: 'normal' },
+  { id: 'warm', name: 'Warm', color: '#FFB74D', blendMode: 'overlay' },
+  { id: 'cool', name: 'Cool', color: '#81D4FA', blendMode: 'overlay' },
+  { id: 'vintage', name: 'Vintage', color: '#A1887F', blendMode: 'multiply' },
+  { id: 'bw', name: 'B&W', color: '#000000', blendMode: 'saturation' },
+  { id: 'pink', name: 'Pink', color: '#F8BBD0', blendMode: 'soft-light' },
+  { id: 'sepia', name: 'Sepia', color: '#D7CCC8', blendMode: 'color' },
+  { id: 'dramatic', name: 'Dramatic', color: '#455A64', blendMode: 'overlay' },
+  { id: 'vivid', name: 'Vivid', color: '#4CAF50', blendMode: 'color-dodge' },
+  { id: 'neon', name: 'Neon', color: '#00E5FF', blendMode: 'hard-light' },
+  { id: 'retro', name: 'Retro', color: '#FFEB3B', blendMode: 'color' },
+  { id: 'dreamy', name: 'Dreamy', color: '#CE93D8', blendMode: 'soft-light' },
+];
+
+const PreviewPhoto = styled.div`
+  background-color: ${({ $color }) => !$color || $color.startsWith('hsl') ? $color || '#f0f0f0' : 'transparent'};
+  background-image: ${({ $color }) => $color && $color.startsWith('data:') ? `url(${$color})` : 'none'};
+  background-size: cover;
+  background-position: center;
+  border-radius: ${({ theme }) => theme.borderRadius.small};
+  width: 100%;
+  height: 100%;
+  border: 3px solid white;
+  box-shadow: ${({ theme }) => theme.shadows.small};
+  position: relative;
+`;
+
+const FilterOverlay = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${({ $color }) => $color || 'transparent'};
+  opacity: 0.4;
+  mix-blend-mode: ${({ $blendMode }) => $blendMode || 'normal'};
+  pointer-events: none;
+  z-index: 2;
+`;
+
+const NextButtonContainer = styled(motion.div)`
+  position: absolute;
+  bottom: ${({ theme }) => theme.spacing.xl};
+  right: ${({ theme }) => theme.spacing.xl};
+`;
+
+const NextButton = styled(motion.button)`
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: ${({ theme }) => theme.colors.primary};
+  color: white;
+  font-size: ${({ theme }) => theme.fontSizes.xl};
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: ${({ theme }) => theme.shadows.medium};
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+// Mock templates for demonstration
+const templates = {
+  // Templates for 2x2 layout (4 photos)
+  '2x2': [
+    { id: 'classic_quad', name: 'Classic Quad', layout: '2x2', color: '#f8f8f8', image: null },
+    { id: 'modern_quad', name: 'Modern Quad', layout: '2x2', color: '#e1f5fe', image: null },
+    { id: 'polaroid_style', name: 'Polaroid Style', layout: '2x2', color: '#fff3e0', image: null },
+    { id: 'minimal_quad', name: 'Minimalist Quad', layout: '2x2', color: '#ffffff', image: null },
+    { id: 'colorful_quad', name: 'Colorful Frames', layout: '2x2', color: '#e8f5e9', image: null },
+    { id: 'scrapbook_quad', name: 'Scrapbook', layout: '2x2', color: '#fff8e1', image: null },
+    { id: 'comic_quad', name: 'Comic Book', layout: '2x2', color: '#ffebee', image: null },
+  ],
+  
+  // Templates for 1x4 layout (4 photos vertically)
+  '1x4': [
+    { id: 'standard_strip', name: 'Black and White', layout: '1x4', color: '#000000', image: null },
+    { id: 'blue_mood', name: 'Blue Mood', layout: '1x4', color: '#e3f2fd', image: null },
+    { id: 'classic_strip', name: 'Classic Strip', layout: '1x4', color: '#f8f8f8', image: null },
+    { id: 'elegant_border', name: 'Elegant Border', layout: '1x4', color: '#fce4ec', image: null },
+    { id: 'magazine_cover', name: 'Magazine Style', layout: '1x4', color: '#e0f7fa', image: null },
+    { id: 'vintage_strip', name: 'Vintage Strip', layout: '1x4', color: '#efebe9', image: null },
+  ],
+  
+  // Templates for 4x1 layout (4 photos horizontally)
+  '4x1': [
+    { id: 'modern_strip', name: 'Modern Strip', layout: '4x1', color: '#e1f5fe', image: null },
+    { id: 'retro_vibe', name: 'Retro Vibe', layout: '4x1', color: '#ede7f6', image: null },
+    { id: 'professional', name: 'Professional', layout: '4x1', color: '#eceff1', image: null },
+    { id: 'vintage_film', name: 'Vintage Film', layout: '4x1', color: '#efebe9', image: null },
+  ],
+  
+  // Templates for 1x2 layout (2 photos vertically)
+  '1x2': [
+    { id: 'vertical_duo', name: 'Vertical Duo', layout: '1x2', color: '#f8f8f8', image: null },
+    { id: 'vertical_modern', name: 'Modern Vertical', layout: '1x2', color: '#e1f5fe', image: null },
+    { id: 'vertical_classic', name: 'Classic Stack', layout: '1x2', color: '#fff3e0', image: null },
+  ],
+  
+  // Templates for 2x1 layout (2 photos horizontally)
+  '2x1': [
+    { id: 'horizontal_duo', name: 'Horizontal Duo', layout: '2x1', color: '#f8f8f8', image: null },
+    { id: 'horizontal_modern', name: 'Modern Horizontal', layout: '2x1', color: '#e0f7fa', image: null },
+    { id: 'side_by_side', name: 'Side by Side', layout: '2x1', color: '#e8f5e9', image: null },
+  ]
+};
+
+// Define simplified animation variants to reduce JS calculations
+const fadeInVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 }
+};
+
+const slideUpVariants = {
+  hidden: { y: -30, opacity: 0 },
+  visible: { y: 0, opacity: 1 }
+};
+
+// Memoized preview photo component
+const MemoizedPreviewPhoto = memo(({ photo, photoIndex, photoFilters }) => {
+  const appliedFilter = photoFilters[photoIndex];
+  const filterDetails = appliedFilter && appliedFilter !== 'normal' ? 
+    filters.find(f => f.id === appliedFilter) : null;
+    
+  return (
+    <PreviewPhoto $color={photo}>
+      {filterDetails && (
+        <FilterOverlay 
+          $color={filterDetails.color}
+          $blendMode={filterDetails.blendMode}
+        />
+      )}
+    </PreviewPhoto>
+  );
+});
+
+// Memoized individual template component
+const MemoizedTemplateCard = memo(({ 
+  template, 
+  isSelected, 
+  onClick, 
+  photosToUse, 
+  photoFilters,
+  selectedPhotos
+}) => {
+  // Determine if we're showing a half strip (2 photos) or full strip (4 photos)
+  const isDuoTemplate = template.layout === '1x2' || template.layout === '2x1';
+  const photoCount = isDuoTemplate ? 2 : 4;
+  const isHalfStrip = photoCount === 2;
+  
+  return (
+    <TemplateCard
+      onClick={onClick}
+      whileTap={{ scale: 0.98 }}
+      style={{
+        backgroundColor: template.color || '#ffffff',
+        border: isSelected ? '3px solid #FF9FD7' : 'none',
+        overflow: 'hidden'
+      }}
+    >
+      <TemplateImage>
+        {template.id === 'standard_strip' || template.id === 'blue_mood' ? (
+          <div style={{
+            width: '60px',
+            height: '240px',
+            display: 'flex',
+            flexDirection: 'column',
+            backgroundColor: 'transparent',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Header text */}
+            <div style={{
+              position: 'absolute',
+              top: '2px',
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              color: 'white',
+              fontSize: '8px',
+              fontWeight: 'bold',
+              padding: '1px'
+            }}>
+              {template.id === 'standard_strip' ? 'Black and White' : 'BLUE MOOD'}
+            </div>
+            
+            {/* Photos */}
+            {Array.from({ length: photoCount }).map((_, index) => {
+              // Use black background for standard strip, colored for blue mood
+              const bgColors = template.id === 'blue_mood' ? 
+                ['#ffcdd2', '#fff9c4', '#bbdefb', '#ffcdd2'] : 
+                ['#000000', '#000000', '#000000', '#000000'];
+              
+              return (
+                <div 
+                  key={index} 
+                  style={{
+                    flex: '1',
+                    width: '100%',
+                    marginBottom: '2px',
+                    backgroundColor: bgColors[index % bgColors.length],
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {photosToUse[index] && (
+                    <img 
+                      src={photosToUse[index]}
+                      alt={`Photo ${index + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        objectPosition: 'center',
+                        display: 'block'
+                      }}
+                    />
+                  )}
+                  
+                  {/* Photo number indicator */}
+                  {template.id === 'standard_strip' && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      right: '2px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '12px',
+                      height: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '8px',
+                      fontWeight: 'bold'
+                    }}>
+                      {index + 1}
+                    </div>
+                  )}
+                  
+                  {/* Star decorations for blue mood template */}
+                  {template.id === 'blue_mood' && (index === 0 || index === photoCount - 1) && (
+                    <>
+                      <div style={{
+                        position: 'absolute',
+                        top: '2px',
+                        right: '2px',
+                        color: '#ffeb3b',
+                        fontSize: '10px',
+                      }}>★</div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            
+            {/* Footer text */}
+            <div style={{
+              position: 'absolute',
+              bottom: '2px',
+              left: 0,
+              right: 0,
+              textAlign: 'center',
+              color: 'white',
+              fontSize: '6px',
+              padding: '1px'
+            }}>
+              {isHalfStrip ? 'Two pieces of life' : 'Four pieces of life'}
+            </div>
+          </div>
+        ) : (
+          <TemplatePreview 
+            layout={template.layout} 
+            photos={photosToUse} 
+            scale={0.9}
+            templateId={template.id}
+            photoFilters={photoFilters}
+            selectedPhotos={selectedPhotos}
+          />
+        )}
+      </TemplateImage>
+      <TemplateName>{template.name}</TemplateName>
+    </TemplateCard>
+  );
+});
+
+// Define the TemplatePreview component outside the main component
+const TemplatePreview = memo(({ layout, photos, scale = 1, templateId, photoFilters, selectedPhotos }) => {
+  // Function to render a photo with its filter
+  const renderPhoto = (photo, index, photoIndex, photoFilters) => {
+    const appliedFilter = photoFilters[photoIndex];
+    const filterDetails = appliedFilter && appliedFilter !== 'normal' ? 
+      filters.find(f => f.id === appliedFilter) : null;
+    
+    if (typeof photo === 'string' && photo.startsWith('data:')) {
+      return (
+        <div
+          style={{
+            width: '100%', 
+            height: '100%', 
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}
+        >
+          <img 
+            src={photo}
+            alt={`Photo ${index + 1}`}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center',
+              display: 'block'
+            }}
+          />
+          {filterDetails && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: filterDetails.color || 'transparent',
+                opacity: 0.4,
+                mixBlendMode: filterDetails.blendMode || 'normal'
+              }}
+            />
+          )}
+        </div>
+      );
+    }
+    
+    return (
+      <div
+        style={{
+          backgroundColor: photo,
+          width: '100%',
+          height: '100%',
+          borderRadius: '4px'
+        }}
+      />
+    );
+  };
+
+  if (layout === '1x4') {
+    // Determine if we should show 2 or 4 photos based on the photos array length
+    const isHalfStrip = photos.length <= 2;
+    
+    // Special styling for standard strip (black and white) to match reference image
+    if (templateId === 'standard_strip') {
+      // Use exact dimensions: 2" x 6" for full strip, 2" x 3" for half strip
+      // Convert inches to pixels (assuming 96 DPI for screen display)
+      const stripWidth = 192 * scale; // 2 inches at 96 DPI
+      const stripHeight = isHalfStrip ? 288 * scale : 576 * scale; // 3 or 6 inches at 96 DPI
+      const photoHeight = isHalfStrip ? 138 * scale : 66 * scale; // Individual photo height
+      const spacing = 3 * scale; // Reduced spacing for better appearance
+      
+      return (
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          width: `${stripWidth}px`,
+          height: `${stripHeight}px`,
+          gap: `${spacing}px`,
+          position: 'relative'
+        }}>
+          {/* Header text */}
+          <div style={{
+            position: 'absolute',
+            top: '4px',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            color: 'white',
+            fontSize: '8px',
+            fontWeight: 'bold',
+            padding: '2px'
+          }}>
+            Black and white
+          </div>
+          
+          {/* Photos */}
+          {photos.map((photo, index) => {
+            const photoIndex = selectedPhotos[index];
+            return (
+              <div 
+                key={index} 
+                style={{
+                  flex: '0 0 auto',
+                  width: '100%',
+                  height: `${photoHeight}px`,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  marginBottom: '3px', // 0.125" spacing
+                  backgroundColor: '#000000',
+                  objectFit: 'cover'
+                }}
+              >
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  {renderPhoto(photo, index, photoIndex, photoFilters)}
+                </div>
+                
+                {/* Photo number indicator */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '4px',
+                  right: '4px',
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '10px',
+                  fontWeight: 'bold'
+                }}>
+                  {index + 1}
+                </div>
+              </div>
+            );
+          })}
+          
+          {/* Footer text */}
+          <div style={{
+            position: 'absolute',
+            bottom: '4px',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            color: 'white',
+            fontSize: '6px',
+            padding: '2px'
+          }}>
+            {isHalfStrip ? 'Two pieces of life' : 'Four pieces of life'}
+          </div>
+        </div>
+      );
+    }
+    
+    // Blue Mood template styling to match the reference image
+    else if (templateId === 'blue_mood') {
+      // Use exact dimensions: 2" x 6" for full strip, 2" x 3" for half strip
+      // Convert inches to pixels (assuming 96 DPI for screen display)
+      const stripWidth = 192 * scale; // 2 inches at 96 DPI
+      const stripHeight = isHalfStrip ? 288 * scale : 576 * scale; // 3 or 6 inches at 96 DPI
+      const photoHeight = isHalfStrip ? 138 * scale : 66 * scale; // Individual photo height
+      const spacing = 3 * scale; // Reduced spacing for better appearance
+      
+      return (
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          width: `${stripWidth}px`,
+          height: `${stripHeight}px`,
+          gap: `${spacing}px`,
+          position: 'relative'
+        }}>
+          {/* Header text */}
+          <div style={{
+            position: 'absolute',
+            top: '4px',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            color: '#90caf9',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            padding: '2px'
+          }}>
+            BLUE MOOD
+          </div>
+          
+          {/* Photos */}
+          {photos.map((photo, index) => {
+            // Use different background colors based on position
+            const bgColors = ['#ffcdd2', '#fff9c4', '#bbdefb', '#ffcdd2'];
+            const photoIndex = selectedPhotos[index];
+            return (
+              <div 
+                key={index} 
+                style={{
+                  flex: '0 0 auto',
+                  width: '100%',
+                  height: `${photoHeight}px`,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  marginBottom: '3px', // 0.125" spacing
+                  backgroundColor: 'transparent',
+                  borderRadius: '0',
+                  objectFit: 'cover'
+                }}
+              >
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }}>
+                  {renderPhoto(photo, index, photoIndex, photoFilters)}
+                </div>
+                
+                {/* Star decorations for first and last photos */}
+                {(index === 0 || index === photos.length - 1) && (
+                  <>
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      color: '#ffeb3b',
+                      fontSize: '16px',
+                    }}>★</div>
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '8px',
+                      color: '#ffeb3b',
+                      fontSize: '16px',
+                    }}>★</div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+          
+          {/* Footer text */}
+          <div style={{
+            position: 'absolute',
+            bottom: '4px',
+            left: 0,
+            right: 0,
+            textAlign: 'center',
+            color: '#90caf9',
+            fontSize: '6px',
+            padding: '2px'
+          }}>
+            {isHalfStrip ? 'Two pieces of life' : 'Four pieces of life'}
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: `${90 * scale}%`, 
+        width: `${60 * scale}%`,
+        gap: '8px',
+        backgroundColor: '#f8f8f8',
+        padding: '12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        {photos.map((photo, index) => {
+          const photoIndex = selectedPhotos[index];
+          return (
+            <MemoizedPreviewPhoto 
+              key={index} 
+              photo={photo} 
+              photoIndex={photoIndex}
+              photoFilters={photoFilters}
+            />
+          );
+        })}
+      </div>
+    );
+  } else if (layout === '4x1') {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'row', 
+        height: `${60 * scale}%`, 
+        width: `${90 * scale}%`,
+        gap: '8px',
+        backgroundColor: '#e1f5fe',
+        padding: '12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        {photos.map((photo, index) => {
+          const photoIndex = selectedPhotos[index];
+          return (
+            <MemoizedPreviewPhoto 
+              key={index} 
+              photo={photo} 
+              photoIndex={photoIndex}
+              photoFilters={photoFilters}
+            />
+          );
+        })}
+      </div>
+    );
+  } else if (layout === '1x2') { // Vertical Duo
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: `${80 * scale}%`, 
+        width: `${50 * scale}%`,
+        gap: '8px',
+        backgroundColor: '#f8f8f8',
+        padding: '12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        {photos.map((photo, index) => {
+          const photoIndex = selectedPhotos[index];
+          return (
+            <MemoizedPreviewPhoto 
+              key={index} 
+              photo={photo} 
+              photoIndex={photoIndex}
+              photoFilters={photoFilters}
+            />
+          );
+        })}
+      </div>
+    );
+  } else if (layout === '2x1') { // Horizontal Duo
+    return (
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'row', 
+        height: `${50 * scale}%`, 
+        width: `${80 * scale}%`,
+        gap: '8px',
+        backgroundColor: '#f8f8f8',
+        padding: '12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        {photos.map((photo, index) => {
+          const photoIndex = selectedPhotos[index];
+          return (
+            <MemoizedPreviewPhoto 
+              key={index} 
+              photo={photo} 
+              photoIndex={photoIndex}
+              photoFilters={photoFilters}
+            />
+          );
+        })}
+      </div>
+    );
+  } else { // Default 2x2
+    return (
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateRows: 'repeat(2, 1fr)',
+        gap: '8px',
+        height: `${80 * scale}%`,
+        width: `${80 * scale}%`,
+        backgroundColor: '#f8f8f8',
+        padding: '12px',
+        borderRadius: '8px',
+        boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+      }}>
+        {photos.map((photo, index) => {
+          const photoIndex = selectedPhotos[index];
+          return (
+            <MemoizedPreviewPhoto 
+              key={index} 
+              photo={photo} 
+              photoIndex={photoIndex}
+              photoFilters={photoFilters}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+});
+
+const TemplateSelectionPage = () => {
+  const { capturedPhotos, selectedPhotos, completeTemplateSelection, photoTemplate, photoFilters } = usePhotobooth();
+  
+  // Get the layout type based on the template
+  const getLayoutType = useCallback(() => {
+    // Check if it's a duo template
+    if (photoTemplate === 'vertical_duo') {
+      return '1x2';
+    } else if (photoTemplate === 'horizontal_duo') {
+      return '2x1';
+    } else if (photoTemplate === 'classic_strip' || photoTemplate === 'standard_strip') {
+      // Always use 1x4 layout for strips, even if we only show 2 photos
+      return '1x4';
+    } else if (photoTemplate === 'horizontal_strip') {
+      return '4x1';
+    }
+    
+    // Default to 1x4 layout (vertical strip) 
+    return '1x4';
+  }, [photoTemplate]);
+  
+  // Determine if we're using duo templates (2 photos) or regular templates (4 photos)
+  const isDuoTemplate = useMemo(() => 
+    photoTemplate === 'vertical_duo' || photoTemplate === 'horizontal_duo',
+    [photoTemplate]
+  );
+  
+  // Get the number of photos to use based on the template
+  const photoCount = useMemo(() => isDuoTemplate ? 2 : 4, [isDuoTemplate]);
+  
+  // Determine if we're showing a half strip (2 photos) or full strip (4 photos)
+  const isHalfStrip = useMemo(() => photoCount === 2, [photoCount]);
+  
+  const layoutType = useMemo(() => getLayoutType(), [getLayoutType]);
+  const availableTemplates = useMemo(() => 
+    templates[layoutType] || templates['2x2'],
+    [layoutType]
+  );
+  
+  const [currentTemplateIndex, setCurrentTemplateIndex] = useState(0);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [showNextButton, setShowNextButton] = useState(true); // Show button by default
+  
+  // Get the photos that were selected by the user
+  const photosToUse = useMemo(() => {
+    // Only use the first 'photoCount' selected photos
+    return selectedPhotos
+      .slice(0, photoCount)
+      .map(index => capturedPhotos[index]);
+  }, [selectedPhotos, capturedPhotos, photoCount]);
+  
+  // Initialize selected template when component mounts or templates change
+  useEffect(() => {
+    if (availableTemplates && availableTemplates.length > 0) {
+      setSelectedTemplate(availableTemplates[0]);
+      setCurrentTemplateIndex(0);
+    }
+  }, [availableTemplates]);
+  
+  // Function to navigate to the next template
+  const nextTemplate = useCallback(() => {
+    if (currentTemplateIndex < availableTemplates.length - 1) {
+      setCurrentTemplateIndex(prev => prev + 1);
+      setSelectedTemplate(availableTemplates[currentTemplateIndex + 1]);
+    }
+  }, [currentTemplateIndex, availableTemplates]);
+  
+  // Function to navigate to the previous template
+  const prevTemplate = useCallback(() => {
+    if (currentTemplateIndex > 0) {
+      setCurrentTemplateIndex(prev => prev - 1);
+      setSelectedTemplate(availableTemplates[currentTemplateIndex - 1]);
+    }
+  }, [currentTemplateIndex, availableTemplates]);
+  
+  // Function to select a template directly
+  const selectTemplate = useCallback((template, index) => {
+    setSelectedTemplate(template);
+    setCurrentTemplateIndex(index);
+  }, []);
+  
+  // Function to continue to the delivery page
+  const handleContinue = useCallback(() => {
+    if (selectedTemplate) {
+      completeTemplateSelection(selectedTemplate.id, selectedTemplate.layout);
+    }
+  }, [selectedTemplate, completeTemplateSelection]);
+  
+  // Don't render until we have selected a template
+  if (!selectedTemplate) return null;
+  
+  return (
+    <PageContainer>
+      <Title
+        variants={slideUpVariants}
+        initial="hidden"
+        animate="visible"
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+      >
+        Choose Your Photo Template
+      </Title>
+      
+      <Subtitle
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
+        Select a template for your {photoCount} photos
+        {isDuoTemplate && <span style={{ display: 'block', fontSize: '0.8em', marginTop: '5px' }}>2" x 3" photo strip</span>}
+        {!isDuoTemplate && <span style={{ display: 'block', fontSize: '0.8em', marginTop: '5px' }}>2" x 6" photo strip</span>}
+      </Subtitle>
+      
+      <CarouselContainer>
+        <CarouselControls>
+          <CarouselButton 
+            onClick={prevTemplate}
+            disabled={currentTemplateIndex === 0}
+          >
+            ←
+          </CarouselButton>
+          
+          <TemplateName>{selectedTemplate.name}</TemplateName>
+          
+          <CarouselButton 
+            onClick={nextTemplate}
+            disabled={currentTemplateIndex === availableTemplates.length - 1}
+          >
+            →
+          </CarouselButton>
+        </CarouselControls>
+        
+        <TemplatesSlider>
+          <TemplateWindow>
+            <TemplatesTrack
+              animate={{ x: `-${currentTemplateIndex * 100}%` }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            >
+              {availableTemplates.map((template, index) => (
+                <MemoizedTemplateCard
+                  key={template.id}
+                  template={template}
+                  isSelected={index === currentTemplateIndex}
+                  onClick={() => selectTemplate(template, index)}
+                  photosToUse={photosToUse}
+                  photoFilters={photoFilters}
+                  selectedPhotos={selectedPhotos}
+                />
+              ))}
+            </TemplatesTrack>
+          </TemplateWindow>
+        </TemplatesSlider>
+      </CarouselContainer>
+      
+      <PreviewSection>
+
+        <Preview>
+          <TemplatePreview 
+            layout={selectedTemplate.layout} 
+            photos={photosToUse} 
+            scale={1.2} 
+            templateId={selectedTemplate.id}
+            photoFilters={photoFilters}
+            selectedPhotos={selectedPhotos}
+          />
+        </Preview>
+      </PreviewSection>
+      
+      <AnimatePresence>
+        {showNextButton && (
+          <NextButtonContainer
+            variants={fadeInVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          >
+            <NextButton
+              onClick={handleContinue}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              →
+            </NextButton>
+          </NextButtonContainer>
+        )}
+      </AnimatePresence>
+    </PageContainer>
+  );
+};
+
+export default TemplateSelectionPage;

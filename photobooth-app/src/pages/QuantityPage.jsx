@@ -37,7 +37,7 @@ const PageContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   padding: ${({ theme }) => theme.spacing.xl};
   background-color: ${({ theme }) => theme.colors.background};
   overflow-y: auto;
@@ -155,9 +155,31 @@ const ContinueButton = styled(Button)`
 // Template definitions
 const templates = [
   {
-    id: 'classic',
+    id: 'vertical_duo',
+    name: 'Vertical Duo',
+    description: '2 photos stacked vertically',
+    layout: '1x2',
+    slots: [
+      { gridRow: '1', color: 'hsl(340, 82%, 76%)' },
+      { gridRow: '2', color: 'hsl(290, 69%, 70%)' },
+    ],
+    price: 5.00
+  },
+  {
+    id: 'horizontal_duo',
+    name: 'Horizontal Duo',
+    description: '2 photos side by side',
+    layout: '2x1',
+    slots: [
+      { gridColumn: '1', color: 'hsl(316, 73%, 66%)' },
+      { gridColumn: '2', color: 'hsl(262, 80%, 77%)' },
+    ],
+    price: 5.00
+  },
+  {
+    id: 'classic_strip',
     name: 'Classic Strip',
-    description: 'Traditional 4-photo strip with equal sizing',
+    description: 'Traditional 4-photo vertical strip',
     layout: '1x4',
     slots: [
       { gridRow: '1', color: 'hsl(340, 82%, 76%)' },
@@ -168,20 +190,7 @@ const templates = [
     price: 5.00
   },
   {
-    id: 'grid',
-    name: 'Photo Grid',
-    description: '2x2 grid of equal-sized photos',
-    layout: '2x2',
-    slots: [
-      { gridColumn: '1', gridRow: '1', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '2', gridRow: '1', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '1', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '2', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 5.00
-  },
-  {
-    id: 'horizontal',
+    id: 'horizontal_strip',
     name: 'Horizontal Strip',
     description: 'Row of 4 horizontal photos',
     layout: '4x1',
@@ -192,123 +201,6 @@ const templates = [
       { gridColumn: '4', color: 'hsl(199, 69%, 72%)' },
     ],
     price: 5.00
-  },
-  {
-    id: 'bigTop',
-    name: 'Feature Top',
-    description: 'Large top photo with 3 smaller below',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1 / span 4', gridRow: '1', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '1', gridRow: '2', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '2', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '3 / span 2', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'bigCenter',
-    name: 'Feature Center',
-    description: 'Large center photo with smaller on sides',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1', gridRow: '1', color: 'hsl(340, 82%, 76%)' },
-      { gridColumn: '2 / span 2', gridRow: '1 / span 2', color: 'hsl(290, 69%, 70%)' },
-      { gridColumn: '4', gridRow: '1', color: 'hsl(231, 67%, 74%)' },
-      { gridColumn: '1 / span 2', gridRow: '2', color: 'hsl(199, 69%, 72%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'polaroid',
-    name: 'Polaroid Style',
-    description: 'Classic polaroid film look with 4 photos',
-    layout: '2x2',
-    slots: [
-      { gridColumn: '1', gridRow: '1', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '2', gridRow: '1', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '1', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '2', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 5.00
-  },
-  {
-    id: 'collage',
-    name: 'Photo Collage',
-    description: 'Artistic arrangement with varied sizes',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1 / span 2', gridRow: '1', color: 'hsl(340, 82%, 76%)' },
-      { gridColumn: '3 / span 2', gridRow: '1', color: 'hsl(290, 69%, 70%)' },
-      { gridColumn: '1', gridRow: '2', color: 'hsl(231, 67%, 74%)' },
-      { gridColumn: '2 / span 3', gridRow: '2', color: 'hsl(199, 69%, 72%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'modern',
-    name: 'Modern Split',
-    description: 'Contemporary layout with asymmetrical design',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1', gridRow: '1 / span 2', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '2 / span 2', gridRow: '1', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '2', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '3', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'filmstrip',
-    name: 'Film Strip',
-    description: 'Classic cinema film strip arrangement',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1', gridRow: '1', color: 'hsl(340, 82%, 76%)' },
-      { gridColumn: '1', gridRow: '2', color: 'hsl(290, 69%, 70%)' },
-      { gridColumn: '2', gridRow: '1', color: 'hsl(231, 67%, 74%)' },
-      { gridColumn: '2', gridRow: '2', color: 'hsl(199, 69%, 72%)' },
-    ],
-    price: 5.00
-  },
-  {
-    id: 'staggered',
-    name: 'Staggered Grid',
-    description: 'Offset grid layout for visual interest',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1 / span 2', gridRow: '1', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '3 / span 2', gridRow: '1', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '2 / span 2', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '4', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'diagonal',
-    name: 'Diagonal Flow',
-    description: 'Dynamic diagonal arrangement',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1', gridRow: '1', color: 'hsl(340, 82%, 76%)' },
-      { gridColumn: '2', gridRow: '1', color: 'hsl(290, 69%, 70%)' },
-      { gridColumn: '3', gridRow: '2', color: 'hsl(231, 67%, 74%)' },
-      { gridColumn: '4', gridRow: '2', color: 'hsl(199, 69%, 72%)' },
-    ],
-    price: 7.00
-  },
-  {
-    id: 'panorama',
-    name: 'Panoramic View',
-    description: 'Widescreen aspect ratio for dramatic shots',
-    layout: 'custom',
-    slots: [
-      { gridColumn: '1 / span 4', gridRow: '1', color: 'hsl(316, 73%, 66%)' },
-      { gridColumn: '1 / span 2', gridRow: '2', color: 'hsl(262, 80%, 77%)' },
-      { gridColumn: '3', gridRow: '2', color: 'hsl(207, 67%, 68%)' },
-      { gridColumn: '4', gridRow: '2', color: 'hsl(152, 53%, 68%)' },
-    ],
-    price: 7.00
   }
 ];
 
@@ -346,9 +238,30 @@ const QuantityPage = () => {
 
   const handleContinue = () => {
     if (selectedTemplate) {
-      // We're always selecting 4 photos for these templates
-      selectQuantity(4, selectedTemplate.id, selectedTemplate.layout);
+      // Check if this is a duo template that needs 2 photos
+      const isDuoTemplate = selectedTemplate.id === 'vertical_duo' || selectedTemplate.id === 'horizontal_duo';
+      // Pass the correct quantity (2 for duo templates, 4 for others)
+      
+      // Add logging to see what's being passed
+      console.log('QuantityPage selected template:', {
+        templateId: selectedTemplate.id,
+        isDuoTemplate,
+        quantity: isDuoTemplate ? 2 : 4,
+        layout: selectedTemplate.layout
+      });
+      
+      selectQuantity(isDuoTemplate ? 2 : 4, selectedTemplate.id, selectedTemplate.layout);
     }
+  };
+
+  // Get the appropriate subtitle text based on selected template
+  const getSubtitleText = () => {
+    if (!selectedTemplate) return "Select a template to continue";
+    
+    const isDuoTemplate = selectedTemplate.id === 'vertical_duo' || selectedTemplate.id === 'horizontal_duo';
+    return isDuoTemplate 
+      ? "You'll take 4 photos and select your favorite 2 for this template"
+      : "You'll take 8 photos and select your favorite 4 for this template";
   };
 
   return (
@@ -373,7 +286,9 @@ const QuantityPage = () => {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
       >
-        You'll take 8 photos and select your favorite 4 for this template
+        {selectedTemplate 
+          ? getSubtitleText()
+          : "You'll take photos and select your favorites for this template"}
       </Subtitle>
       
       <TemplatesGrid

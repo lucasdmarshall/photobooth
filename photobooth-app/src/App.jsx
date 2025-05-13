@@ -15,7 +15,7 @@ import QuantityPage from './pages/QuantityPage';
 import PaymentPage from './pages/PaymentPage';
 import CapturePage from './pages/CapturePage';
 import SelectionPage from './pages/SelectionPage';
-import EditingPage from './pages/EditingPage';
+import TemplateSelectionPage from './pages/TemplateSelectionPage';
 import DeliveryPage from './pages/DeliveryPage';
 import ThankYouPage from './pages/ThankYouPage';
 import ExpiredPage from './pages/ExpiredPage';
@@ -106,13 +106,17 @@ const App = () => {
       case 'quantity':
         return <QuantityPage />;
       case 'payment':
-        return <PaymentPage />;
+        // Skip payment step and go directly to capture
+        return <CapturePage />;
       case 'capture':
         return <CapturePage />;
       case 'selection':
         return <SelectionPage />;
+      case 'template_selection':
+        return <TemplateSelectionPage />;
       case 'editing':
-        return <EditingPage />;
+        // Skip editing page and go directly to delivery
+        return <DeliveryPage />;
       case 'delivery':
       case 'printing':
       case 'qr':

@@ -3,7 +3,6 @@ import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePhotobooth } from '../contexts/PhotoboothContext';
 import Button from '../components/ui/Button';
-import Timer from '../components/ui/Timer';
 
 const PageContainer = styled.div`
   width: 100%;
@@ -231,7 +230,7 @@ const templates = [
 ];
 
 const EditingPage = () => {
-  const { capturedPhotos, selectedPhotos, completeEditing, sessionTimeRemaining } = usePhotobooth();
+  const { capturedPhotos, selectedPhotos, completeEditing } = usePhotobooth();
   
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('normal');
@@ -263,8 +262,6 @@ const EditingPage = () => {
   
   return (
     <PageContainer>
-      <Timer initialTime={sessionTimeRemaining} />
-      
       <Title
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

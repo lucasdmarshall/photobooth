@@ -12,11 +12,17 @@
   "license": "ISC",
   "description": "A cute photobooth system with a playful UI and smooth animations",
   "dependencies": {
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "framer-motion": "^11.0.8",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.3",
-    "styled-components": "^6.1.8"
+    "react-qrcode-logo": "^3.0.0",
+    "react-router-dom": "^6.30.0",
+    "styled-components": "^6.1.8",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

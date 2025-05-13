@@ -47,10 +47,9 @@ const initialState = {
   // Session state
   sessionActive: false,
   paymentComplete: false,
-  sessionStep: 'idle', // idle, quantity, payment, capture, selection, editing, delivery, thankyou
+  sessionStep: 'idle', // idle, quantity, payment, capture, selection, template_selection, delivery, thankyou
   sessionExpired: false,
-  sessionTimeRemaining: 180, // 3 minutes in seconds
-
+  
   // Photo options
   selectedQuantity: null,
   captureMethod: null, // 'manual' or 'timer'
@@ -59,16 +58,20 @@ const initialState = {
   // Photo captures
   capturedPhotos: [], // Array of photo data URIs
   selectedPhotos: [], // Array of indices of selected photos
+  photoFilters: {}, // Map of photo indices to their filter ids, e.g. {0: 'warm', 1: 'bw'}
   
   // Editing
-  photoFilters: [], // Array of filter ids applied to selected photos
   photoBackground: null, // ID of selected background
   photoTemplate: null, // ID of selected template
   templateLayout: null, // Layout configuration for the selected template
   
+  // Beautification
+  beautificationSettings: {}, // Map of photo indices to their beautification settings
+  
   // Delivery
   deliveryMethod: null, // 'print' or 'qr'
   qrCodeUrl: null, // URL for download via QR
+  qrCodeData: null, // Additional QR code data (id, expiration, etc.)
 };
 
 // Create context
@@ -110,8 +113,7 @@ export const PhotoboothProvider = ({ children }) => {
     updateState({
       sessionActive: true,
       sessionStep: 'quantity',
-      sessionExpired: false,
-      sessionTimeRemaining: 180
+      sessionExpired: false
     });
   }, [updateState, enterFullscreen]);
   
@@ -122,7 +124,10 @@ export const PhotoboothProvider = ({ children }) => {
       selectedQuantity: quantity,
       photoTemplate: templateId,
       templateLayout: templateLayout,
-      sessionStep: 'payment'
+      sessionStep: 'capture',
+      paymentComplete: true, // Set payment as complete to skip payment page
+      capturedPhotos: [], // Reset captured photos when starting a new session
+      photoFilters: {} // Reset filters
     });
   }, [updateState]);
   
@@ -145,36 +150,41 @@ export const PhotoboothProvider = ({ children }) => {
   }, [updateState]);
   
   // Capture a photo
-  const capturePhoto = useCallback((photoDataUri) => {
+  const capturePhoto = useCallback((photoDataUri, photoIndex = null) => {
     setState(prevState => {
-      const newCapturedPhotos = [...prevState.capturedPhotos, photoDataUri];
-      
-      // We always want to capture exactly 8 photos regardless of the template
-      const totalPhotosToCapture = 8;
-      
-      // Move to selection step if we have captured enough photos
-      const newStep = newCapturedPhotos.length >= totalPhotosToCapture 
-        ? 'selection' 
-        : prevState.sessionStep;
-      
-      return {
-        ...prevState,
-        capturedPhotos: newCapturedPhotos,
-        sessionStep: newStep
-      };
+      // If photoIndex is provided, replace the photo at that index
+      if (photoIndex !== null && photoIndex >= 0 && photoIndex < prevState.capturedPhotos.length) {
+        const newCapturedPhotos = [...prevState.capturedPhotos];
+        newCapturedPhotos[photoIndex] = photoDataUri;
+        return {
+          ...prevState,
+          capturedPhotos: newCapturedPhotos
+        };
+      } else {
+        // Otherwise, add a new photo
+        const newCapturedPhotos = [...prevState.capturedPhotos, photoDataUri];
+        return {
+          ...prevState,
+          capturedPhotos: newCapturedPhotos
+        };
+      }
     });
   }, []);
   
   // Select photos from captured
   const selectPhotos = useCallback((selectedIndices) => {
     setState(prevState => {
-      // Always select 4 photos for the final output
-      if (selectedIndices.length !== 4) return prevState;
+      // Determine required number of photos based on template type
+      const isDuoTemplate = prevState.photoTemplate === 'vertical_duo' || prevState.photoTemplate === 'horizontal_duo';
+      const requiredPhotos = isDuoTemplate ? 2 : 4;
+      
+      // Check if we have the right number of photos selected
+      if (selectedIndices.length !== requiredPhotos) return prevState;
       
       return {
         ...prevState,
         selectedPhotos: selectedIndices,
-        sessionStep: 'editing'
+        sessionStep: 'template_selection' // Skip editing page and go directly to template_selection
       };
     });
   }, []);
@@ -183,9 +193,35 @@ export const PhotoboothProvider = ({ children }) => {
   const applyFilter = useCallback((filterId) => {
     setState(prevState => ({
       ...prevState,
-      photoFilters: filterId
+      photoFilters: { ...prevState.photoFilters, [prevState.selectedPhotos.length]: filterId }
     }));
   }, []);
+  
+  // Apply filter to a specific photo
+  const applyFilterToPhoto = useCallback((photoIndex, filterId) => {
+    setState(prevState => ({
+      ...prevState,
+      photoFilters: { ...prevState.photoFilters, [photoIndex]: filterId }
+    }));
+  }, []);
+  
+  // Apply beautification settings to a specific photo
+  const applyBeautificationToPhoto = useCallback((photoIndex, settings) => {
+    setState(prevState => ({
+      ...prevState,
+      beautificationSettings: { ...prevState.beautificationSettings, [photoIndex]: settings }
+    }));
+  }, []);
+  
+  // Get beautification settings for a specific photo
+  const getBeautificationSettings = useCallback((photoIndex) => {
+    return state.beautificationSettings[photoIndex] || {
+      smoothing: 0.5,
+      skinTone: 0.2,
+      brightness: 0.1,
+      faceSlimming: 0.2,
+    };
+  }, [state.beautificationSettings]);
   
   // Select background
   const selectBackground = useCallback((backgroundId) => {
@@ -201,6 +237,15 @@ export const PhotoboothProvider = ({ children }) => {
     });
   }, [updateState]);
   
+  // Complete template selection
+  const completeTemplateSelection = useCallback((templateId, layoutType) => {
+    updateState({
+      photoTemplate: templateId,
+      templateLayout: layoutType,
+      sessionStep: 'delivery'
+    });
+  }, [updateState]);
+  
   // Complete editing
   const completeEditing = useCallback(() => {
     updateState({
@@ -208,6 +253,62 @@ export const PhotoboothProvider = ({ children }) => {
     });
   }, [updateState]);
   
+  // Generate a unique download ID
+  const generateDownloadId = useCallback(() => {
+    return Math.random().toString(36).substring(2, 15) + 
+           Math.random().toString(36).substring(2, 15);
+  }, []);
+
+  // Generate QR code URL for downloading photos
+  const generateQrCodeUrl = useCallback(() => {
+    const downloadId = generateDownloadId();
+    
+    // Create a direct download link for the photos
+    // We'll use Firebase Dynamic Links or a similar service in a real app
+    // For now, we'll use a mock URL that would be accessible from any device
+    
+    // Option 1: Use a URL shortener service (mock for now)
+    const shortUrl = `https://pbth.io/${downloadId}`;
+    
+    // Option 2: Use a cloud storage URL (mock for now)
+    const cloudUrl = `https://storage.googleapis.com/photobooth-app/downloads/${downloadId}`;
+    
+    // Option 3: Use a QR code that contains the photos directly (for small number of photos)
+    // This would encode the actual photo data in the QR code for direct download
+    // We'll simulate this with a data URL
+    const dataUrl = `data:text/plain;base64,${btoa(JSON.stringify({id: downloadId, timestamp: Date.now()}))}`;  
+    
+    // Store the photos in localStorage for the download page to access
+    try {
+      const photosToStore = {
+        photos: state.capturedPhotos,
+        selectedPhotos: state.selectedPhotos,
+        templateId: state.photoTemplate,
+        timestamp: Date.now(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours from now
+      };
+      
+      // Store by specific download ID
+      localStorage.setItem(`photobooth_${downloadId}`, JSON.stringify(photosToStore));
+      
+      // Also store the current state for fallback
+      localStorage.setItem('photoboothState', JSON.stringify(state));
+      
+      console.log('Photos stored in localStorage for download');
+    } catch (error) {
+      console.error('Error storing photos in localStorage:', error);
+    }
+    
+    return {
+      url: shortUrl, // Use the short URL for the QR code
+      cloudUrl: cloudUrl,
+      dataUrl: dataUrl,
+      id: downloadId,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+      localUrl: `${window.location.origin}/download.html?id=${downloadId}` // For local testing
+    };
+  }, [generateDownloadId, state]);
+
   // Choose delivery method
   const selectDeliveryMethod = useCallback((method) => {
     updateState({
@@ -215,10 +316,14 @@ export const PhotoboothProvider = ({ children }) => {
       sessionStep: method === 'print' ? 'printing' : 'qr'
     });
     
-    // Simulate QR code generation or printing completion
+    // Handle delivery method
     if (method === 'qr') {
-      // In a real app, this would generate a unique URL for downloading photos
-      updateState({ qrCodeUrl: 'https://example.com/download/photos?id=123456' });
+      // Generate QR code URL for downloading photos
+      const qrCodeData = generateQrCodeUrl();
+      updateState({ 
+        qrCodeUrl: qrCodeData.url,
+        qrCodeData: qrCodeData
+      });
     } else if (method === 'print') {
       // Simulate printing time
       setTimeout(() => {
@@ -230,7 +335,7 @@ export const PhotoboothProvider = ({ children }) => {
         }, 60000); // 60 seconds
       }, 5000); // 5 seconds printing simulation
     }
-  }, [updateState]);
+  }, [updateState, generateQrCodeUrl]);
   
   // Handle session expiration
   const handleSessionExpire = useCallback(() => {
@@ -250,37 +355,6 @@ export const PhotoboothProvider = ({ children }) => {
     setState(initialState);
   }, []);
   
-  // Session timer countdown
-  useEffect(() => {
-    let timer;
-    
-    if (state.sessionActive && state.paymentComplete && state.sessionTimeRemaining > 0) {
-      timer = setInterval(() => {
-        setState(prevState => {
-          const newTimeRemaining = prevState.sessionTimeRemaining - 1;
-          
-          if (newTimeRemaining <= 0) {
-            clearInterval(timer);
-            handleSessionExpire();
-            return {
-              ...prevState,
-              sessionTimeRemaining: 0
-            };
-          }
-          
-          return {
-            ...prevState,
-            sessionTimeRemaining: newTimeRemaining
-          };
-        });
-      }, 1000);
-    }
-    
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [state.sessionActive, state.paymentComplete, state.sessionTimeRemaining, handleSessionExpire]);
-  
   // Get price for selected quantity
   const getPrice = useCallback((quantity) => {
     return PHOTO_PACKAGE_PRICES[quantity] || 0;
@@ -297,12 +371,17 @@ export const PhotoboothProvider = ({ children }) => {
     capturePhoto,
     selectPhotos,
     applyFilter,
+    applyFilterToPhoto,
+    applyBeautificationToPhoto,
+    getBeautificationSettings,
     selectBackground,
     selectTemplate,
+    completeTemplateSelection,
     completeEditing,
     selectDeliveryMethod,
     resetSession,
-    getPrice
+    getPrice,
+    updateState
   };
   
   return (

@@ -6,5 +6,9 @@
     "install": "cd photobooth-app && npm install",
     "start": "cd photobooth-app && npm start",
     "build": "cd photobooth-app && npm run build"
+  },
+  "dependencies": {
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "opencv.js": "^1.2.1"
   }
-} 
+}

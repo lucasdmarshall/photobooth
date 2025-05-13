@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePhotobooth } from '../contexts/PhotoboothContext';
 import Button from '../components/ui/Button';
-import Timer from '../components/ui/Timer';
 
 const PageContainer = styled.div`
   width: 100%;
@@ -84,7 +83,23 @@ const PhotoItem = styled(motion.div)`
 const PhotoThumb = styled.div`
   width: 100%;
   height: 100%;
-  background-color: ${({ color }) => color || '#f0f0f0'};
+  background-color: ${({ color }) => !color || color.startsWith('hsl') ? color || '#f0f0f0' : 'transparent'};
+  background-image: ${({ color }) => color && color.startsWith('data:') ? `url(${color})` : 'none'};
+  background-size: cover;
+  background-position: center;
+  position: relative;
+`;
+
+const FilterEffect = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: ${({ $color }) => $color || 'transparent'};
+  opacity: 0.4;
+  mix-blend-mode: ${({ $blendMode }) => $blendMode || 'normal'};
+  pointer-events: none; /* Make sure clicks pass through to the preview */
 `;
 
 const SelectionIndicator = styled(motion.div)`
@@ -146,20 +161,88 @@ const PreviewTitle = styled.h3`
   margin-bottom: ${({ theme }) => theme.spacing.sm};
 `;
 
+// Define filters array at the component level
+const filters = [
+  { id: 'normal', name: 'Normal', color: null, blendMode: 'normal' },
+  { id: 'warm', name: 'Warm', color: '#FFB74D', blendMode: 'overlay' },
+  { id: 'cool', name: 'Cool', color: '#81D4FA', blendMode: 'overlay' },
+  { id: 'vintage', name: 'Vintage', color: '#A1887F', blendMode: 'multiply' },
+  { id: 'bw', name: 'B&W', color: '#000000', blendMode: 'saturation' },
+  { id: 'pink', name: 'Pink', color: '#F8BBD0', blendMode: 'soft-light' },
+  { id: 'sepia', name: 'Sepia', color: '#D7CCC8', blendMode: 'color' },
+  { id: 'dramatic', name: 'Dramatic', color: '#455A64', blendMode: 'overlay' },
+  { id: 'vivid', name: 'Vivid', color: '#4CAF50', blendMode: 'color-dodge' },
+  { id: 'neon', name: 'Neon', color: '#00E5FF', blendMode: 'hard-light' },
+  { id: 'retro', name: 'Retro', color: '#FFEB3B', blendMode: 'color' },
+  { id: 'dreamy', name: 'Dreamy', color: '#CE93D8', blendMode: 'soft-light' },
+];
+
+// Create memoized photo item component to prevent unnecessary re-renders
+const MemoizedPhotoItem = memo(({ 
+  index, 
+  photo, 
+  isSelected, 
+  selectionIndex, 
+  onSelect, 
+  filterDetails 
+}) => {
+  return (
+    <PhotoItem
+      $selected={isSelected}
+      onClick={() => onSelect(index)}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+    >
+      <PhotoThumb color={photo}>
+        {filterDetails && (
+          <FilterEffect 
+            $color={filterDetails.color}
+            $blendMode={filterDetails.blendMode}
+          />
+        )}
+      </PhotoThumb>
+      <AnimatePresence>
+        {isSelected && (
+          <SelectionIndicator
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+          >
+            {selectionIndex + 1}
+          </SelectionIndicator>
+        )}
+      </AnimatePresence>
+    </PhotoItem>
+  );
+});
+
+// Define simplified animation variants to reduce JS calculations
+const fadeInVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1 }
+};
+
+const slideUpVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: { y: 0, opacity: 1 }
+};
+
 const SelectionPage = () => {
   const { 
     capturedPhotos, 
     photoTemplate,
     templateLayout,
     selectPhotos,
-    sessionTimeRemaining
+    selectedQuantity,
+    photoFilters
   } = usePhotobooth();
   
   const [selected, setSelected] = useState([]);
   const [error, setError] = useState('');
   
-  // Required photos (always 4 now regardless of original selection)
-  const requiredPhotos = 4;
+  // Determine required photos based on template type
+  const isDuoTemplate = photoTemplate === 'vertical_duo' || photoTemplate === 'horizontal_duo';
+  const requiredPhotos = isDuoTemplate ? 2 : 4;
   
   // Reset selection if photos change
   useEffect(() => {
@@ -167,7 +250,7 @@ const SelectionPage = () => {
     setError('');
   }, [capturedPhotos]);
   
-  const toggleSelect = (index) => {
+  const toggleSelect = useCallback((index) => {
     setSelected(prev => {
       // If already selected, remove it
       if (prev.includes(index)) {
@@ -186,9 +269,9 @@ const SelectionPage = () => {
       setError('');
       return newSelection;
     });
-  };
+  }, [requiredPhotos]);
   
-  const handleContinue = () => {
+  const handleContinue = useCallback(() => {
     if (selected.length !== requiredPhotos) {
       setError(`Please select exactly ${requiredPhotos} photos`);
       setTimeout(() => setError(''), 3000);
@@ -196,29 +279,40 @@ const SelectionPage = () => {
     }
     
     selectPhotos(selected);
-  };
+  }, [selected, requiredPhotos, selectPhotos]);
+  
+  // Determine the total photos to display based on template
+  const totalPhotosToShow = isDuoTemplate ? 4 : 8;
   
   // Split photos into left and right columns
-  const leftPhotos = capturedPhotos.slice(0, 4);
-  const rightPhotos = capturedPhotos.slice(4, 8);
+  const leftPhotos = capturedPhotos.slice(0, Math.ceil(totalPhotosToShow / 2));
+  const rightPhotos = capturedPhotos.slice(Math.ceil(totalPhotosToShow / 2), totalPhotosToShow);
+  
+  // Memoize filter lookup for better performance
+  const getFilterDetails = useCallback((photoIndex) => {
+    const appliedFilter = photoFilters[photoIndex];
+    if (!appliedFilter || appliedFilter === 'normal') return null;
+    
+    return filters.find(f => f.id === appliedFilter);
+  }, [photoFilters]);
   
   return (
     <PageContainer>
-      <Timer initialTime={sessionTimeRemaining} />
-      
       <Title
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+        variants={slideUpVariants}
+        initial="hidden"
+        animate="visible"
       >
         Choose Your Favorite Photos
       </Title>
       
       <Subtitle
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
         transition={{ delay: 0.2 }}
       >
-        Select exactly 4 photos from the 8 you've taken for your final output
+        Select exactly {requiredPhotos} photos from the {totalPhotosToShow} you've taken for your final output
       </Subtitle>
       
       <SelectionCounter>
@@ -227,63 +321,53 @@ const SelectionPage = () => {
       
       <PhotoSelectionContainer>
         <PhotoColumn>
-          <ColumnTitle>Photos 1-4</ColumnTitle>
+          <ColumnTitle>Photos {isDuoTemplate ? '1-2' : '1-4'}</ColumnTitle>
           <PhotoGrid>
             {leftPhotos.map((photo, originalIndex) => {
               const index = originalIndex;
+              const isSelected = selected.includes(index);
+              const selectionIndex = selected.indexOf(index);
+              const filterDetails = getFilterDetails(index);
+              
               return (
-                <PhotoItem
+                <MemoizedPhotoItem
                   key={index}
-                  $selected={selected.includes(index)}
-                  onClick={() => toggleSelect(index)}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <PhotoThumb color={photo} />
-                  <AnimatePresence>
-                    {selected.includes(index) && (
-                      <SelectionIndicator
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                      >
-                        {selected.indexOf(index) + 1}
-                      </SelectionIndicator>
-                    )}
-                  </AnimatePresence>
-                </PhotoItem>
+                  index={index}
+                  photo={photo}
+                  isSelected={isSelected}
+                  selectionIndex={selectionIndex}
+                  onSelect={toggleSelect}
+                  filterDetails={filterDetails}
+                />
               );
             })}
           </PhotoGrid>
         </PhotoColumn>
         
         <PhotoColumn>
-          <ColumnTitle>Photos 5-8</ColumnTitle>
+          <ColumnTitle>Photos {isDuoTemplate ? '3-4' : '5-8'}</ColumnTitle>
           <PhotoGrid>
             {rightPhotos.map((photo, originalIndex) => {
-              const index = originalIndex + 4; // Offset by 4 for the right column
-              return (
-                <PhotoItem
-                  key={index}
-                  $selected={selected.includes(index)}
-                  onClick={() => toggleSelect(index)}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <PhotoThumb color={photo} />
-                  <AnimatePresence>
-                    {selected.includes(index) && (
-                      <SelectionIndicator
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                      >
-                        {selected.indexOf(index) + 1}
-                      </SelectionIndicator>
-                    )}
-                  </AnimatePresence>
-                </PhotoItem>
-              );
+              // Only display photos that exist
+              if (photo) {
+                const index = originalIndex + Math.ceil(totalPhotosToShow / 2); // Offset for the right column
+                const isSelected = selected.includes(index);
+                const selectionIndex = selected.indexOf(index);
+                const filterDetails = getFilterDetails(index);
+                
+                return (
+                  <MemoizedPhotoItem
+                    key={index}
+                    index={index}
+                    photo={photo}
+                    isSelected={isSelected}
+                    selectionIndex={selectionIndex}
+                    onSelect={toggleSelect}
+                    filterDetails={filterDetails}
+                  />
+                );
+              }
+              return null;
             })}
           </PhotoGrid>
         </PhotoColumn>
@@ -292,9 +376,10 @@ const SelectionPage = () => {
       <AnimatePresence>
         {error && (
           <ErrorMessage
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            variants={slideUpVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
           >
             {error}
           </ErrorMessage>
@@ -303,8 +388,9 @@ const SelectionPage = () => {
       
       {photoTemplate && (
         <PreviewSection
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          variants={fadeInVariants}
+          initial="hidden"
+          animate="visible"
           transition={{ delay: 0.3 }}
         >
           <PreviewTitle>Your Photos Will Appear in the "{photoTemplate}" Template</PreviewTitle>
@@ -319,7 +405,7 @@ const SelectionPage = () => {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          Continue to Editing
+          Continue to Delivery
         </Button>
       </ActionBar>
     </PageContainer>
