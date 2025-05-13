@@ -12,6 +12,7 @@
   "license": "ISC",
   "description": "A cute photobooth system with a playful UI and smooth animations",
   "dependencies": {
+    "@mediapipe/face_mesh": "^0.4.1633559619",
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
     "express": "^5.1.0",
